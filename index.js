@@ -1,7 +1,12 @@
 const express = require("express");
+const cors = require("cors");
 const app = express();
 const port = 3000;
 
+// Enable CORS
+app.use(cors());
+
+// Game list
 const games = [
   "Minecraft",
   "Minecraft Dungeons",
@@ -22,46 +27,28 @@ const games = [
   "FIFA 23",
   "NBA 2K24",
   "Madden NFL 24",
-  "Battlefield 2042",
-  "Halo Infinite",
-  "Starfield",
-  "The Legend of Zelda: BOTW",
-  "Super Mario Odyssey",
-  "Animal Crossing: New Horizons",
-  "Tetris Effect",
-  "Resident Evil Village",
-  "The Witcher 3",
-  "Red Dead Redemption 2",
-  "Cyberpunk 2077",
-  "Fall Guys",
-  "Among Us",
-  "Stardew Valley",
-  "Hades",
-  "Sea of Thieves",
-  "Monster Hunter World",
-  "Dark Souls 3",
-  "Elden Ring",
-  "Ghost of Tsushima",
-  "Spider-Man: Miles Morales",
-  "Assassin’s Creed Valhalla",
-  "Far Cry 6",
-  "Terraria",
-  "Baldur’s Gate 3",
-  "Path of Exile",
-  "Pummel Party",
-  "Phasmophobia",
-  "Dungeon Defenders",
-  "Mobile Legends"
-  // … continue until 300
+  "Battlefield 2042"
 ];
 
+// API for Adaptive Card Typeahead
 app.get("/getGames", (req, res) => {
-  const results = games.map(g => ({
-    title: g,
-    value: g.toLowerCase().replace(/[^a-z0-9]+/g, "_") // replace spaces & special chars
+
+  const results = games.map(game => ({
+    title: game,
+    value: game
   }));
 
-  res.json(results); // direct array for Adaptive Card
+  const successResult = {
+    status: 200,
+    body: {
+      type: "application/vnd.microsoft.search.searchResponse",
+      value: {
+        results: results
+      }
+    }
+  };
+
+  res.json(successResult);
 });
 
 app.listen(port, () => {
