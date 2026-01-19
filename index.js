@@ -1,56 +1,84 @@
-const express = require("express");
-const cors = require("cors");
-const app = express();
-const port = 3000;
+const restify = require('restify');
+const { BotFrameworkAdapter, ActivityHandler } = require('botbuilder');
 
-// Enable CORS
-app.use(cors());
+/**
+ * Bot implementation
+ */
+class SearchBot extends ActivityHandler {
+    constructor() {
+        super();
 
-// Game list
-const games = [
-  "Minecraft",
-  "Minecraft Dungeons",
-  "GTA V",
-  "GTA San Andreas",
-  "Call of Duty",
-  "Call of Duty Modern Warfare",
-  "Death's Door",
-  "Fortnite",
-  "Forza Horizon 5",
-  "Apex Legends",
-  "Overwatch 2",
-  "Valorant",
-  "League of Legends",
-  "Dota 2",
-  "CS2",
-  "Rocket League",
-  "FIFA 23",
-  "NBA 2K24",
-  "Madden NFL 24",
-  "Battlefield 2042"
-];
+        // Handle Invoke activities (required for dynamic typeahead)
+        this.onInvokeActivity = async (context) => {
+            const activity = context.activity;
 
-// API for Adaptive Card Typeahead
-app.get("/getGames", (req, res) => {
+            if (activity.name === 'application/search') {
+                return this.handleSearch(context);
+            }
 
-  const results = games.map(game => ({
-    title: game,
-    value: game
-  }));
-
-  const successResult = {
-    status: 200,
-    body: {
-      type: "application/vnd.microsoft.search.searchResponse",
-      value: {
-        results: results
-      }
+            return { status: 404 };
+        };
     }
-  };
 
-  res.json(successResult);
+    async handleSearch(context) {
+        const { queryText, dataset } = context.activity.value;
+
+        // Validate dataset name from Adaptive Card
+        if (dataset !== 'games') {
+            return { status: 400 };
+        }
+
+        const results = this.getGames(queryText);
+
+        // REQUIRED response format for Teams / Copilot Studio
+        return {
+            status: 200,
+            body: {
+                type: 'application/vnd.microsoft.search.searchResponse',
+                value: {
+                    results
+                }
+            }
+        };
+    }
+
+    // Mock data source (replace with DB / API)
+    getGames(searchText = '') {
+        const games = [
+            { title: 'Call of Duty', value: 'call_of_duty' },
+            { title: "Death's Door", value: 'deaths_door' },
+            { title: 'Grand Theft Auto V', value: 'grand_theft' },
+            { title: 'Minecraft', value: 'minecraft' },
+            { title: 'Mine Legends', value: 'mine_legends' },
+            { title: 'Mine Rush', value: 'mine_rush' }
+        ];
+
+        return games.filter(g =>
+            g.title.toLowerCase().includes(searchText.toLowerCase())
+        );
+    }
+}
+
+/**
+ * Server + Adapter setup
+ */
+const server = restify.createServer();
+server.use(restify.plugins.bodyParser());
+
+server.listen(process.env.PORT || 3978, () => {
+    console.log('Bot listening on port 3978');
 });
 
-app.listen(port, () => {
-  console.log(`API running on http://localhost:${port}`);
+const adapter = new BotFrameworkAdapter({
+    appId: process.env.MicrosoftAppId,
+    appPassword: process.env.MicrosoftAppPassword
+});
+
+const bot = new SearchBot();
+
+// Message endpoint
+server.post('/api/messages', (req, res) => {
+    adapter.processActivity(req, res, async (context) => {
+        await bot.run(context);
+    });
 });
