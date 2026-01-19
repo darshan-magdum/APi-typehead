@@ -8,14 +8,10 @@ class SearchBot extends ActivityHandler {
     constructor() {
         super();
 
-        // Handle Invoke activities (required for dynamic typeahead)
         this.onInvokeActivity = async (context) => {
-            const activity = context.activity;
-
-            if (activity.name === 'application/search') {
+            if (context.activity.name === 'application/search') {
                 return this.handleSearch(context);
             }
-
             return { status: 404 };
         };
     }
@@ -23,14 +19,12 @@ class SearchBot extends ActivityHandler {
     async handleSearch(context) {
         const { queryText, dataset } = context.activity.value;
 
-        // Validate dataset name from Adaptive Card
         if (dataset !== 'games') {
             return { status: 400 };
         }
 
         const results = this.getGames(queryText);
 
-        // REQUIRED response format for Teams / Copilot Studio
         return {
             status: 200,
             body: {
@@ -42,7 +36,6 @@ class SearchBot extends ActivityHandler {
         };
     }
 
-    // Mock data source (replace with DB / API)
     getGames(searchText = '') {
         const games = [
             { title: 'Call of Duty', value: 'call_of_duty' },
@@ -60,7 +53,7 @@ class SearchBot extends ActivityHandler {
 }
 
 /**
- * Server + Adapter setup
+ * Server setup
  */
 const server = restify.createServer();
 server.use(restify.plugins.bodyParser());
@@ -76,9 +69,12 @@ const adapter = new BotFrameworkAdapter({
 
 const bot = new SearchBot();
 
-// Message endpoint
-server.post('/api/messages', (req, res) => {
-    adapter.processActivity(req, res, async (context) => {
+/**
+ * IMPORTANT FIX:
+ * Route handler MUST be async
+ */
+server.post('/api/messages', async (req, res) => {
+    await adapter.processActivity(req, res, async (context) => {
         await bot.run(context);
     });
 });
